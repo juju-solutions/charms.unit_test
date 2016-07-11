@@ -66,8 +66,8 @@ class Harness(unittest.TestCase):
             # Python files without a .py extension.
 
             # Grab everything in reactive and lib/charms/layer
-            mods = glob("**reactive/*.py", recursive=True)
-            mods.extend(glob("**lib/charms/layer/*.py", recursive=True))
+            mods = glob("**reactive/*.py")
+            mods.extend(glob("**lib/charms/layer/*.py"))
 
             # Transform the file path into a Python module reference
             # (strip off '.py' extension)
