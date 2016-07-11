@@ -87,7 +87,7 @@ class Harness(unittest.TestCase):
             list of modules to mock out. If you need to mock out
             additional modules, you may pass them in here.
         @param bool mock_hookenv_status: Set to False if you want to
-            avoid mocking out calls to the hookenv lib.
+            avoid mocking out calls to hookenv.status_set.
         @param bool mock_layers: Set to False if you want to skip
             mocking out calls to layers that aren't checked into this
             layer's source tree.
