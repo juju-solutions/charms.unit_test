@@ -47,6 +47,10 @@ class Harness(unittest.TestCase):
                 'self.statuses does not exist. Did you initialize a '
                 'harness without passing in mock_hookenv_status=True?')
 
+    def _status_set(self, status, message):
+        '''Set our mock status.'''
+        self.statuses.append((status, message))
+
     @property
     def local_modules(self):
         '''
@@ -103,15 +107,17 @@ class Harness(unittest.TestCase):
         if mock_hookenv_status:
             self.statuses = []
             for f in self.local_modules:
-                self._to_mock.append('{}.hookenv'.format(f))
+                self._to_mock.append('{}.hookenv.status_set'.format(f))
 
         # Attempt to patch all of the references that we've found.  If
         # a reference fails (because the file doesn't actually import
         # the thing that we're patching), just skip.
         for ref in self._to_mock:
-            patcher = mock.patch(ref)
+            patcher = mock.patch(ref, create=True)
             try:
                 self.mocks[ref] = patcher.start()
+                if ref.endswith('hookenv.status_set'):
+                    self.mocks[ref].side_effect = self._status_set
             except AttributeError:
                 pass
             else:
