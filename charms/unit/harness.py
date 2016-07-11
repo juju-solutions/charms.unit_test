@@ -9,7 +9,6 @@ from glob import glob
 import mock
 import unittest
 
-class HarnessError(Exception): pass
 
 class Harness(unittest.TestCase):
     '''
@@ -30,22 +29,20 @@ class Harness(unittest.TestCase):
         self._patchers = []
         self._local_modules = None
         self.mocks = {}
+        self.statuses = []
 
     @property
     def last_status(self):
         '''
         Helper for mocked out status list.
 
-        Returns the last status set. Raises a HarnessError if this
-        method is called, but the hookenv mock is not active.
+        Returns the last status set, or a (None, None) tuple if no
+        status has been set.
 
         '''
-        try:
-            return self.statuses[-1]
-        except AttributeError:
-            raise HarnessError(
-                'self.statuses does not exist. Did you initialize a '
-                'harness without passing in mock_hookenv_status=True?')
+        if not self.statuses:
+            return (None, None)
+        return self.statuses[-1]
 
     def _status_set(self, status, message):
         '''Set our mock status.'''
@@ -105,7 +102,6 @@ class Harness(unittest.TestCase):
                 self._to_mock.append('{}.layer'.format(f))
 
         if mock_hookenv_status:
-            self.statuses = []
             for f in self.local_modules:
                 self._to_mock.append('{}.hookenv.status_set'.format(f))
 
