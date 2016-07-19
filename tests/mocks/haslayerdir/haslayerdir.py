@@ -1,4 +1,5 @@
 from charms_mock import layer
+from charms_mock.layer.haslayerdir import HasLayerDirLib
 
 class HasLayerDir(object):
 
@@ -9,4 +10,6 @@ class HasLayerDir(object):
         layer.foo()
         return True
 
-HasLayerDirLib = layer.haslayerdir
+    def has_layer_dir_lib(self):
+        lib = HasLayerDirLib()
+        return True
