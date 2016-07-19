@@ -185,9 +185,6 @@ class Harness(unittest.TestCase):
 
         '''
         if self._local_modules is None:
-            # TODO: there is probably a more elegant way to do
-            # this. At the very least, we probably want to handle
-            # Python files without a .py extension.
 
             # Grab everything in reactive and lib/charms/layer
             mods = []
