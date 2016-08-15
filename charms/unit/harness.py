@@ -60,17 +60,21 @@ class Harness(unittest.TestCase):
     'layer.options'
 
     '''
+    last_imports = []
+
     @classmethod
     @contextmanager
-    def patch_imports(*to_mock):
+    def patch_imports(cls, *to_mock):
         '''
         Given a list of references to modules, in dot format, I'll add a
         mock object to sys.modules corresponding to that reference. When
         this context handler exits, I'll clean up the references.
 
         '''
-        if type(to_mock[0]) is list:
+        if type(to_mock[0]) in (list, tuple):
             to_mock = to_mock[0]
+
+        cls.last_imports = to_mock
 
         refs = {}
 
@@ -104,7 +108,7 @@ class Harness(unittest.TestCase):
         # 'lib' and 'reactive' are typically added to PYTHONPATH when
         # running tests, so I'll strip out that part of the module
         # name when setting up my mock patches.
-        self.trim_prefixes = ['lib.', 'reactive.']
+        self.trim_prefixes = ['lib.']
 
     def log(self, msg):
         '''
@@ -113,7 +117,7 @@ class Harness(unittest.TestCase):
         '''
         self._log.debug(msg)
 
-    def set_mock(self, ref, side_effect=None):
+    def set_mock(self, ref, side_effect=None, return_value=None):
         '''
         Setup a mock patcher for a given reference. Possibly add a side effect.
 
@@ -121,22 +125,14 @@ class Harness(unittest.TestCase):
 
         '''
         patcher = mock.patch(ref, create=True)
-        try:
-            self.mocks[ref] = patcher.start()
-        except AttributeError as e:
-            self.log("AttributeError: {}".format(e))
-        except ImportError as e:
-            # TODO: I don't think that ignoring this is the right
-            # thing to do (we get ImportErrors only in our test
-            # modules; not sure whether it's an issue w/ the
-            # artificiality of the test environment, or a real issue.)
-            self.log("ImportError: {}".format(e))
-        else:
-            self._patchers.append(patcher)
-            if side_effect:
-                self.mocks[ref].side_effect = side_effect
+        self.mocks[ref] = patcher.start()
+        self._patchers.append(patcher)
+        if side_effect:
+            self.mocks[ref].side_effect = side_effect
+        if return_value:
+            self.mocks[ref].return_value = return_value
 
-            return self.mocks[ref]
+        return self.mocks[ref]
 
     @property
     def last_status(self):
@@ -163,17 +159,30 @@ class Harness(unittest.TestCase):
 
         '''
         for mod in self.local_modules:
-            for ref in ['{}.hookenv.status_set'.format(mod),
-                        '{}.status_set'.format(mod)]:
-                self.set_mock(ref, side_effect=self._status_set)
+            if hasattr(sys.modules.get(mod), 'hookenv'):
+                self.set_mock(
+                    '{}.hookenv.status_set'.format(mod),
+                    side_effect=self._status_set)
 
-    def mock_layer_init(self):
+            if hasattr(sys.modules.get(mod), 'status_set'):
+                self.set_mock(
+                    '{}.status_set'.format(mod),
+                    side_effect=self._status_set)
+
+    def mock_options(self):
         '''
         Mock out 'layer.options'.
 
         '''
         for mod in self.local_modules:
-            self.set_mock('{}.layer'.format(mod))
+            # Deal with the case where someone does 'from charms
+            # import layer', and the case where they do 'from
+            # charms.layer import options.'
+            if hasattr(sys.modules.get(mod), 'layer'):
+                self.set_mock('{}.layer'.format(mod))
+
+            if hasattr(sys.modules.get(mod), 'options'):
+                self.set_mock('{}.options'.format(mod))
 
     @property
     def local_modules(self):
@@ -212,8 +221,9 @@ class Harness(unittest.TestCase):
         so that each test has access to a clean list of mocks.
 
         '''
-        self.mock_hookenv_status()
-        self.mock_layer_init()
+        with self.patch_imports(self.last_imports):
+            self.mock_hookenv_status()
+            self.mock_options()
 
     def tearDown(self):
         '''Clean up our mocks.'''

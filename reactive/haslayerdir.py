@@ -6,8 +6,8 @@ class HasLayerDir(object):
     def test(self):
         return "test has layer dir!"
 
-    def foo_lives(self):
-        layer.foo()
+    def options_mocked(self):
+        layer.options()
         return True
 
     def has_layer_dir_lib(self):
