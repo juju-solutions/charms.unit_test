@@ -1,3 +1,11 @@
 #Emacs temp files
 *~
 *#*
+
+# Python
+build/*
+__pycache__/*
+*.pyc
+.tox/*
+
+
