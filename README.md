@@ -1,4 +1,4 @@
-# Charms.Unit\_Test
+# charms.unit\_test
 
 This library provides helpers for unit testing reactive style charms.
 
@@ -17,7 +17,7 @@ from charms.unit_test import patch_reactive, patch_module
 patch_reactive()
 
 # patch some other module that the charm expects to be there
-patch_module('charms.layer.my_layer')
+patch_module('charms.leadership')
 ```
 
 With this, your test code can import the charm's reactive code which
