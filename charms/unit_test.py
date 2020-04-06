@@ -77,6 +77,7 @@ class MockLoader:
                     # attach mock module to parent
                     parent_name, sub_name = module_name.rsplit('.', 1)
                     setattr(sys.modules[parent_name], sub_name, mock_module)
+        return mock_module
 
 
 sys.meta_path.append(MockFinder())
