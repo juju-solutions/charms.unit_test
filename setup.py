@@ -9,7 +9,6 @@ SETUP = {
     'url': "https://github.com/juju-solutions/charms.unit_test",
     'packages': [
         "charms",
-        "charms.unit_test",
     ],
     'install_requires': [
     ],
