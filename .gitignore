@@ -1,3 +1,6 @@
 .tox/
 __pycache__/
 *.pyc
+#Emacs temp files
+*~
+*#*
