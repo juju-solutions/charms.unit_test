@@ -1,6 +1,7 @@
 import os
 import sys
 import importlib.util
+from importlib import import_module
 from importlib.machinery import ModuleSpec
 from itertools import accumulate
 from unittest.mock import MagicMock, patch
@@ -25,9 +26,25 @@ class MockPackage(MagicMock):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__path__ = []
+        if 'name' in kwargs:
+            self.__name__ = kwargs['name']
+        elif len(args) >= 5:
+            self.__name__ = args[4]
+        else:
+            self.__name__ = ''
 
     def _get_child_mock(self, **kw):
         return MagicMock(**kw)
+
+
+class AutoImportMockPackage(MockPackage):
+    def __getattr__(self, attr):
+        if attr.startswith('_'):
+            return super().__getattr__(attr)
+        try:
+            return import_module(self.__name__ + '.' + attr)
+        except ModuleNotFoundError:
+            return super().__getattr__(attr)
 
 
 class MockFinder:
@@ -92,34 +109,36 @@ class MockFinder:
 
 
 class MockLoader:
-    def load_module(self, fullname):
+    def load_module(self, fullname, replacement=...):
+        if replacement is ...:
+            replacement = MockPackage(name=fullname)
         # in addition to the module we've been asked to load, we need to ensure
         # that each parent of the module is present and attached together
         for module_name in module_tree(fullname):
             if module_name not in sys.modules:
-                mock_module = MockPackage(name=module_name)
-                sys.modules[module_name] = mock_module
+                sys.modules[module_name] = replacement
                 if '.' in module_name:
                     # attach mock module to parent
                     parent_name, sub_name = module_name.rsplit('.', 1)
-                    setattr(sys.modules[parent_name], sub_name, mock_module)
-        return mock_module
+                    setattr(sys.modules[parent_name], sub_name, replacement)
+        return replacement
 
 
 sys.meta_path.append(MockFinder())
 
 
-def patch_module(module_name):
+def patch_module(module_name, replacement=...):
     if module_name in sys.modules:
         mock_module = sys.modules[module_name]
-        assert isinstance(mock_module, MockPackage)
+        if not isinstance(mock_module, MockPackage):
+            raise ValueError('already imported: {module_name}')
         return mock_module
-    return MockLoader().load_module(module_name)
+    return MockLoader().load_module(module_name, replacement)
 
 
 def patch_reactive():
     patch_module('charms.templating')
-    patch_module('charms.layer')
+    patch_module('charms.layer', AutoImportMockPackage(name='charms.layer'))
 
     ch = patch_module('charmhelpers')
     ch.hookenv.atexit = identity

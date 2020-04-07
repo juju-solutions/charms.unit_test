@@ -48,3 +48,11 @@ def test_import_over_patch():
     unit_test.patch_module('patched.module')
     from patched.module.import_over_patch import real_or_fake
     assert real_or_fake == 'real'
+
+
+def test_auto_import_mock_package():
+    sys.path.insert(0, str(Path(__file__).parent / 'lib'))
+    mock_package = unit_test.AutoImportMockPackage(name='patched.module')
+    unit_test.patch_module('patched.module', mock_package)
+    import patched
+    assert patched.module.import_over_patch.real_or_fake == 'real'
