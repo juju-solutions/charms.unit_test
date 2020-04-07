@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -40,3 +41,10 @@ def test_patched_child():
     import dummy.test
     assert isinstance(dummy.test.module, unit_test.MockPackage)
     assert isinstance(dummy.test.module.foo, MagicMock)
+
+
+def test_import_over_patch():
+    sys.path.insert(0, str(Path(__file__).parent / 'lib'))
+    unit_test.patch_module('patched.module')
+    from patched.module.import_over_patch import real_or_fake
+    assert real_or_fake == 'real'
