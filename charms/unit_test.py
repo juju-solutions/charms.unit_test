@@ -6,6 +6,13 @@ from itertools import accumulate
 from unittest.mock import MagicMock, patch
 
 
+try:
+    ModuleNotFoundError
+except NameError:
+    # python 3.5 compatibility
+    ModuleNotFoundError = ImportError
+
+
 def identity(x):
     return x
 
