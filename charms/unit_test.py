@@ -1,8 +1,16 @@
 import os
 import sys
+import importlib.util
 from importlib.machinery import ModuleSpec
 from itertools import accumulate
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
+
+try:
+    ModuleNotFoundError
+except NameError:
+    # python 3.5 compatibility
+    ModuleNotFoundError = ImportError
 
 
 def identity(x):
@@ -24,6 +32,24 @@ class MockPackage(MagicMock):
 
 class MockFinder:
     def find_spec(self, fullname, path, target=None):
+        # defer to things actually on disk; to do so, though, we have to
+        # temporarily remove any patched modules from sys.modules, or they will
+        # prevent the normal discovery method from working, as well as
+        # temporarily removing this finder from sys.meta_path to prevent
+        # infinite recursion
+        with patch.dict(sys.modules, clear=True,
+                        values={name: mod for name, mod in sys.modules.items()
+                                if not isinstance(mod, MockPackage)}):
+            with patch('sys.meta_path',
+                       [finder for finder in sys.meta_path
+                        if not isinstance(finder, MockFinder)]):
+                try:
+                    file_spec = importlib.util.find_spec(fullname)
+                    if file_spec:
+                        return file_spec
+                except ModuleNotFoundError:
+                    pass
+        # otherwise, see if we've patched something related
         for method in (self._find_exact,
                        self._find_patched_parent,
                        self._find_patched_child):
