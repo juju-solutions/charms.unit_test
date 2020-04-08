@@ -131,7 +131,7 @@ def patch_module(module_name, replacement=...):
     if module_name in sys.modules:
         mock_module = sys.modules[module_name]
         if not isinstance(mock_module, MockPackage):
-            raise ValueError('already imported: {module_name}')
+            raise ValueError('already imported: {}'.format(module_name))
         return mock_module
     return MockLoader().load_module(module_name, replacement)
 
