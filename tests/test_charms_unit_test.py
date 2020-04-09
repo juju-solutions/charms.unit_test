@@ -86,3 +86,21 @@ def test_auto_import_mock_package():
     unit_test.patch_module('patched.module', mock_package)
     import patched
     assert patched.module.import_over_patch.real_or_fake == 'real'
+
+
+def test_patch_reactive():
+    unit_test.patch_reactive()
+    import charms.templating  # noqa
+    import charms.layer.foo  # noqa
+    import charmhelpers
+    from charms.reactive import when
+
+    @charmhelpers.hookenv.atexit
+    def test_atexit():
+        return 'ok'
+    assert test_atexit() == 'ok'
+
+    @when('foo')
+    def test_when():
+        return 'ok'
+    assert test_when() == 'ok'

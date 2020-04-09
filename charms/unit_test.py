@@ -116,13 +116,15 @@ class MockLoader:
     @classmethod
     def load_module(cls, fullname, replacement=None):
         """"Load" a mock module into sys.modules."""
-        sys.modules[fullname] = replacement or MockPackage(fullname)
+        replacement = replacement or MockPackage(fullname)
+        sys.modules[fullname] = replacement
         if '.' in fullname:
             # Attach the new "module" to its parent.
             parent_name, parent_attr = fullname.rsplit('.', 1)
             setattr(sys.modules[parent_name], parent_attr,
                     sys.modules[fullname])
         _debug('Patched {}', fullname, color='green')
+        return replacement
 
 
 def patch_module(fullname, replacement=None):
