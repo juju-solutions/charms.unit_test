@@ -6,6 +6,8 @@ from importlib.machinery import ModuleSpec
 from itertools import accumulate
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 try:
     ModuleNotFoundError
@@ -14,24 +16,25 @@ except NameError:
     ModuleNotFoundError = ImportError
 
 
+def _debug(msg, *args, color=None, **kwargs):
+    pass  # used for debugging during testing only
+
+
 def identity(x):
     return x
 
 
-def module_tree(module_name):
-    return accumulate(module_name.split('.'), lambda a, b: '.'.join([a, b]))
+def module_ancestors(module_name):
+    tree = list(accumulate(module_name.split('.'),
+                           lambda a, b: '.'.join([a, b])))
+    return tree[:-1]
 
 
 class MockPackage(MagicMock):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(*args, name=name, **kwargs)
+        self.__name__ = name
         self.__path__ = []
-        if 'name' in kwargs:
-            self.__name__ = kwargs['name']
-        elif len(args) >= 5:
-            self.__name__ = args[4]
-        else:
-            self.__name__ = ''
 
     def _get_child_mock(self, **kw):
         return MagicMock(**kw)
@@ -49,11 +52,28 @@ class AutoImportMockPackage(MockPackage):
 
 class MockFinder:
     def find_spec(self, fullname, path, target=None):
-        # defer to things actually on disk; to do so, though, we have to
+        """
+        Find a ModuleSpec for the given module / package name.
+
+        This can be called for one of two cases:
+
+          * Nothing in this module tree has been loaded, in which case we'll be
+            called for the top-level package name. In this case, we need to
+            patch the entire module tree, but that is handled by MockLoader.
+
+          * An ancestor has been loaded but the finder for that ancestor either
+            is the MockFinder or it's one of the standard finders which can't
+            find the requested module.
+        """
+        _debug('Searching for {}', fullname, color='cyan')
+        # Defer to things actually on disk. To do so, though, we have to
         # temporarily remove any patched modules from sys.modules, or they will
-        # prevent the normal discovery method from working, as well as
-        # temporarily removing this finder from sys.meta_path to prevent
-        # infinite recursion
+        # prevent the normal discovery method from working. We also have to
+        # temporarily remove this finder from sys.meta_path to prevent infinite
+        # recursion. This handles the case where one of the ancestors is a
+        # patched module, but the user is trying to import a real module. A
+        # common example of this is having charms.layer patched but wanting to
+        # import the charm's own lib code, from, e.g., charms.layer.my_charm.
         with patch.dict(sys.modules, clear=True,
                         values={name: mod for name, mod in sys.modules.items()
                                 if not isinstance(mod, MockPackage)}):
@@ -63,80 +83,79 @@ class MockFinder:
                 try:
                     file_spec = importlib.util.find_spec(fullname)
                     if file_spec:
+                        _debug('Found real module {}', fullname, color='green')
                         return file_spec
                 except ModuleNotFoundError:
                     pass
-        # otherwise, see if we've patched something related
-        for method in (self._find_exact,
-                       self._find_patched_parent,
-                       self._find_patched_child):
-            if method(fullname):
-                return ModuleSpec(fullname, MockLoader())
-        else:
-            return None
 
-    def _find_exact(self, fullname):
-        """
-        Handle the case of importing foo.bar when foo.bar is patched.
-        """
-        if fullname in sys.modules:
-            assert isinstance(sys.modules[fullname], MockPackage)
-            return True
-        else:
-            return False
-
-    def _find_patched_parent(self, fullname):
-        """
-        Handle the case of importing foo.bar when foo is patched.
-        """
-        for module_name in module_tree(fullname):
-            if isinstance(sys.modules.get(module_name), MockPackage):
-                return True
-        else:
-            return False
-
-    def _find_patched_child(self, fullname):
-        """
-        Handle the case of importing foo when foo.bar.qux is patched.
-        """
-        for module_name, module in sys.modules.items():
-            if not isinstance(module, MockPackage):
+        # If nothing can be found on disk, then we're either being called as
+        # a last option for something that really should fail, or because an
+        # ancestor was patched and the user is expecting to be able to import
+        # a submodule. In the former case, we should just fail as well. In the
+        # latter case, we should automatically apply the patch so that it does
+        # what they expect. A common case of that is the charm importing
+        # a layer they depend on; since we don't want to have to explicitly
+        # patch every possible layer, this allows us to auto-patch layers as
+        # they're used.
+        for module_name in reversed(module_ancestors(fullname)):
+            existing_module = sys.modules.get(module_name)
+            if not existing_module:
                 continue
-            if module_name.startswith(fullname + '.'):
-                return True
-        else:
-            return False
+            if isinstance(existing_module, MockPackage):
+                _debug('Found patched ancestor of {} at {}',
+                       fullname, module_name, color='green')
+                return ModuleSpec(fullname, MockLoader)
+            # If we encounter a real module, we don't want to auto-mock
+            # anything below it, even if an earlier ancestor is mocked.
+            break
+        _debug('No match found for {}', fullname, color='red')
+        return None
 
 
 class MockLoader:
-    def load_module(self, fullname, replacement=...):
-        if replacement is ...:
-            replacement = MockPackage(name=fullname)
-        # in addition to the module we've been asked to load, we need to ensure
-        # that each parent of the module is present and attached together
-        for module_name in module_tree(fullname):
-            if module_name not in sys.modules:
-                sys.modules[module_name] = replacement
-                if '.' in module_name:
-                    # attach mock module to parent
-                    parent_name, sub_name = module_name.rsplit('.', 1)
-                    setattr(sys.modules[parent_name], sub_name, replacement)
-        return replacement
+    @classmethod
+    def load_module(cls, fullname, replacement=None):
+        """"Load" a mock module into sys.modules."""
+        sys.modules[fullname] = replacement or MockPackage(fullname)
+        if '.' in fullname:
+            # Attach the new "module" to its parent.
+            parent_name, parent_attr = fullname.rsplit('.', 1)
+            setattr(sys.modules[parent_name], parent_attr,
+                    sys.modules[fullname])
+        _debug('Patched {}', fullname, color='green')
 
 
-sys.meta_path.append(MockFinder())
+def patch_module(fullname, replacement=None):
+    """
+    Patch a module (and potentially all of its parent packages).
+
+    If replacement is given, it should inherit from MockPackage and will be
+    used instead of a newly created MockPackage instance.
+    """
+    for ancestor in module_ancestors(fullname):
+        if ancestor not in sys.modules:
+            MockLoader.load_module(ancestor)
+    return MockLoader.load_module(fullname, replacement)
 
 
-def patch_module(module_name, replacement=...):
-    if module_name in sys.modules:
-        mock_module = sys.modules[module_name]
-        if not isinstance(mock_module, MockPackage):
-            raise ValueError('already imported: {}'.format(module_name))
-        return mock_module
-    return MockLoader().load_module(module_name, replacement)
+def patch_fixture(patch_target, patch_opts=None, **kwargs):
+    """
+    Create a pytest fixture which patches the target.
+
+    An optional ``patch_opts`` dict can be give, to be passed in to the call to
+    ``patch``. Any other keyword args are passed to ``pytest.fixture``.
+    """
+    @pytest.fixture(**kwargs)
+    def _fixture():
+        with patch(patch_target, **(patch_opts or {})) as m:
+            yield m
+    return _fixture
 
 
 def patch_reactive():
+    """
+    Setup the standard patches that any reactive charm will require.
+    """
     patch_module('charms.templating')
     patch_module('charms.layer', AutoImportMockPackage(name='charms.layer'))
 
@@ -152,3 +171,6 @@ def patch_reactive():
 
     os.environ['JUJU_MODEL_UUID'] = 'test-1234'
     os.environ['JUJU_UNIT_NAME'] = 'test/0'
+
+
+sys.meta_path.append(MockFinder())
