@@ -3,7 +3,7 @@ import sys
 import importlib.util
 from importlib.machinery import ModuleSpec
 from itertools import accumulate
-from unittest.mock import MagicMock, patch
+from unittest.mock import DEFAULT, MagicMock, patch
 
 import pytest
 
@@ -157,16 +157,23 @@ def patch_module(fullname, replacement=None):
     return MockLoader.load_module(fullname, replacement)
 
 
-def patch_fixture(patch_target, patch_opts=None, **kwargs):
+def patch_fixture(patch_target, new=DEFAULT,
+                  patch_opts=None, fixture_opts=None):
     """
     Create a pytest fixture which patches the target.
 
-    An optional ``patch_opts`` dict can be give, to be passed in to the call to
-    ``patch``. Any other keyword args are passed to ``pytest.fixture``.
+    The `new` param is equivalent to `patch_opts={'new': new}`, where
+    `patch_opts` is a dict of kwargs to pass to the patch call.  Equivalently,
+    `fixture_opts` is a dict of kwargs to pass to the fixture decorator.
     """
-    @pytest.fixture(**kwargs)
+    fixture_opts = fixture_opts or {}
+    patch_opts = patch_opts or {}
+    if new is not DEFAULT:
+        patch_opts['new'] = new
+
+    @pytest.fixture(**fixture_opts)
     def _fixture():
-        with patch(patch_target, **(patch_opts or {})) as m:
+        with patch(patch_target, **patch_opts) as m:
             yield m
     return _fixture
 
