@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -76,16 +76,42 @@ def test_import_real_over_patched_ancestor():
     import patched.module.import_over_patch as import_over_patch
     import patched.module
     assert not isinstance(import_over_patch, unit_test.MockPackage)
+    assert isinstance(patched.module, unit_test.MockPackage)
     assert import_over_patch.real_or_fake == 'real'
     assert patched.module.import_over_patch is import_over_patch
 
 
+@patch('sys.path', [str(Path(__file__).parent / 'lib')] + sys.path)
 def test_auto_import_mock_package():
-    sys.path.insert(0, str(Path(__file__).parent / 'lib'))
+    import patched
     mock_package = unit_test.AutoImportMockPackage(name='patched.module')
     unit_test.patch_module('patched.module', mock_package)
-    import patched
+    assert not isinstance(patched.module.import_over_patch,
+                          unit_test.MockPackage)
+    assert isinstance(patched.module, unit_test.MockPackage)
     assert patched.module.import_over_patch.real_or_fake == 'real'
+
+
+@patch('sys.path', [str(Path(__file__).parent / 'lib')] + sys.path)
+def test_auto_import_mock_package_from_syntax():
+    import patched
+    mock_package = unit_test.AutoImportMockPackage(name='patched.module')
+    unit_test.patch_module('patched.module', mock_package)
+    from patched.module import import_over_patch
+    assert not isinstance(import_over_patch, unit_test.MockPackage)
+    assert isinstance(patched.module, unit_test.MockPackage)
+    assert import_over_patch.real_or_fake == 'real'
+
+
+@patch('sys.path', [str(Path(__file__).parent / 'lib' / 'patched')] + sys.path)
+def test_auto_import_mock_package_top_level():
+    mock_package = unit_test.AutoImportMockPackage(name='module')
+    unit_test.patch_module('module', mock_package)
+    import module
+    assert not isinstance(module.import_over_patch,
+                          unit_test.MockPackage)
+    assert isinstance(module, unit_test.MockPackage)
+    assert module.import_over_patch.real_or_fake == 'real'
 
 
 def test_patch_reactive():
