@@ -1,7 +1,6 @@
 import os
 import sys
 import importlib.util
-from importlib import import_module
 from importlib.machinery import ModuleSpec
 from itertools import accumulate
 from unittest.mock import MagicMock, patch
@@ -44,10 +43,28 @@ class AutoImportMockPackage(MockPackage):
     def __getattr__(self, attr):
         if attr.startswith('_'):
             return super().__getattr__(attr)
+        module_name = self.__name__ + '.' + attr
+        if '.' in self.__name__:
+            # For some reason loading, or even finding the spec for, a real
+            # submodule will cause us to get detached from our grandparent,
+            # so we have to save and restore.
+            gp_name, gp_attr = self.__name__.rsplit('.', 1)
+            grandparent = sys.modules[gp_name]
+        else:
+            gp_attr, grandparent = None, None
+        _debug('Attempting to auto-load {}', module_name, color='cyan')
         try:
-            return import_module(self.__name__ + '.' + attr)
+            module = importlib.import_module(module_name)
+            setattr(self, attr, module)
+            _debug('Loaded {}', module, color='green')
+            return module
         except ModuleNotFoundError:
+            _debug('Unable to load {}, returning mock', module_name,
+                   color='red')
             return super().__getattr__(attr)
+        finally:
+            if grandparent:
+                setattr(grandparent, gp_attr, self)
 
 
 class MockFinder:
