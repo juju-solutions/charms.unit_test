@@ -15,8 +15,25 @@ except NameError:
     ModuleNotFoundError = ImportError
 
 
-def _debug(msg, *args, color=None, **kwargs):
-    pass  # used for debugging during testing only
+def _debug_noop(msg, *args, color=None, **kwargs):
+    pass
+
+
+def _debug_pront(msg, *args, color=None, **kwargs):
+    colors = {
+        'red': '\x1b[31m',
+        'green': '\x1b[32m',
+        'yellow': '\x1b[33m',
+        'blue': '\x1b[34m',
+        'magenta': '\x1b[35m',
+        'cyan': '\x1b[36m',
+    }
+    if color:
+        msg = colors[color] + msg + '\x1b[0m'
+    print(msg.format(*args, **kwargs))
+
+
+_debug = _debug_noop  # overridden during testing by the --debug-tests option
 
 
 def identity(x):
