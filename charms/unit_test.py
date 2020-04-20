@@ -46,7 +46,7 @@ def module_ancestors(module_name):
     return tree[:-1]
 
 
-class MockPackage(MagicMock):
+class AutoImportMockPackage(MagicMock):
     def __init__(self, name, *args, **kwargs):
         super().__init__(*args, name=name, **kwargs)
         self.__name__ = name
@@ -55,8 +55,6 @@ class MockPackage(MagicMock):
     def _get_child_mock(self, **kw):
         return MagicMock(**kw)
 
-
-class AutoImportMockPackage(MockPackage):
     def __getattr__(self, attr):
         if attr.startswith('_'):
             return super().__getattr__(attr)
@@ -110,7 +108,7 @@ class MockFinder:
         # import the charm's own lib code, from, e.g., charms.layer.my_charm.
         with patch.dict(sys.modules, clear=True,
                         values={name: mod for name, mod in sys.modules.items()
-                                if not isinstance(mod, MockPackage)}):
+                                if not isinstance(mod, MagicMock)}):
             with patch('sys.meta_path',
                        [finder for finder in sys.meta_path
                         if not isinstance(finder, MockFinder)]):
@@ -135,7 +133,7 @@ class MockFinder:
             existing_module = sys.modules.get(module_name)
             if not existing_module:
                 continue
-            if isinstance(existing_module, MockPackage):
+            if isinstance(existing_module, MagicMock):
                 _debug('Found patched ancestor of {} at {}',
                        fullname, module_name, color='green')
                 return ModuleSpec(fullname, MockLoader)
@@ -150,13 +148,33 @@ class MockLoader:
     @classmethod
     def load_module(cls, fullname, replacement=None):
         """"Load" a mock module into sys.modules."""
-        replacement = replacement or MockPackage(fullname)
-        sys.modules[fullname] = replacement
         if '.' in fullname:
-            # Attach the new "module" to its parent.
-            parent_name, parent_attr = fullname.rsplit('.', 1)
-            setattr(sys.modules[parent_name], parent_attr,
-                    sys.modules[fullname])
+            parent_name, attr = fullname.rsplit('.', 1)
+            parent = sys.modules[parent_name]
+            if replacement is None:
+                if isinstance(parent, MagicMock):
+                    # Get the MockPackage from the parent, since it might have
+                    # been imported elsewhere as an attribute (i.e., using the
+                    # `from foo import bar` syntax). Also, we can't use getattr
+                    # in case the parent is an AutoImportMockPackage because it
+                    # will lead to infinite recursion.
+                    try:
+                        replacement = MagicMock.__getattribute__(parent, attr)
+                    except AttributeError:
+                        replacement = MagicMock.__getattr__(parent, attr)
+                else:
+                    replacement = MagicMock(name=fullname)
+                    setattr(parent, attr, replacement)
+            else:
+                # We have a specific replacement, so attach it to the parent.
+                setattr(parent, attr, replacement)
+        elif replacement is None:
+            replacement = MagicMock(name=fullname)
+        # Turn mock into a "package".
+        if not hasattr(replacement, '__path__'):
+            replacement.__name__ = fullname
+            replacement.__path__ = []
+        sys.modules[fullname] = replacement
         _debug('Patched {}', fullname, color='green')
         return replacement
 
@@ -164,9 +182,6 @@ class MockLoader:
 def patch_module(fullname, replacement=None):
     """
     Patch a module (and potentially all of its parent packages).
-
-    If replacement is given, it should inherit from MockPackage and will be
-    used instead of a newly created MockPackage instance.
     """
     for ancestor in module_ancestors(fullname):
         if ancestor not in sys.modules:
