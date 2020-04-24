@@ -115,7 +115,7 @@ def test_patch_reactive():
     import charmhelpers
     from charms.reactive import when
 
-    @charmhelpers.hookenv.atexit
+    @charmhelpers.core.hookenv.atexit
     def test_atexit():
         return 'ok'
     assert test_atexit() == 'ok'

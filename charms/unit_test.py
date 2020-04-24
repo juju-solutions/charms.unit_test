@@ -218,7 +218,7 @@ def patch_reactive():
     patch_module('charms.layer', AutoImportMockPackage(name='charms.layer'))
 
     ch = patch_module('charmhelpers')
-    ch.hookenv.atexit = identity
+    ch.core.hookenv.atexit = identity
 
     reactive = patch_module('charms.reactive')
     reactive.when.return_value = identity
