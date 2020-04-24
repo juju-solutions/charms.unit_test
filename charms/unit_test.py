@@ -219,6 +219,7 @@ def patch_reactive():
 
     ch = patch_module('charmhelpers')
     ch.core.hookenv.atexit = identity
+    ch.core.hookenv.charm_dir.return_value = 'charm_dir'
 
     reactive = patch_module('charms.reactive')
     reactive.when.return_value = identity
