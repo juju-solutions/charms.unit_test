@@ -113,7 +113,7 @@ def test_patch_reactive():
     import charms.templating  # noqa
     import charms.layer.foo  # noqa
     import charmhelpers
-    from charms.reactive import when
+    from charms.reactive import when, when_all, when_not_all
 
     @charmhelpers.core.hookenv.atexit
     def test_atexit():
@@ -124,3 +124,13 @@ def test_patch_reactive():
     def test_when():
         return 'ok'
     assert test_when() == 'ok'
+
+    @when_all('foo', 'bar')
+    def test_when_all():
+        return 'all_ok'
+    assert test_when_all() == 'all_ok'
+
+    @when_not_all('foo', 'bar', 'baz')
+    def test_when_not_all():
+        return 'not_all_ok'
+    assert test_when_not_all() == 'not_all_ok'
