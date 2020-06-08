@@ -114,6 +114,8 @@ def test_patch_reactive():
     import charms.layer.foo  # noqa
     import charmhelpers
     from charms.reactive import when, when_all, when_not_all
+    from charms.reactive import set_flag, clear_flag, is_flag_set
+    from charms.reactive import set_state, remove_state, is_state
 
     @charmhelpers.core.hookenv.atexit
     def test_atexit():
@@ -134,3 +136,18 @@ def test_patch_reactive():
     def test_when_not_all():
         return 'not_all_ok'
     assert test_when_not_all() == 'not_all_ok'
+
+    assert not is_flag_set('foo')
+    assert not is_state('foo')
+    set_flag('foo')
+    assert is_flag_set('foo')
+    assert is_state('foo')
+    clear_flag('foo')
+    assert not is_flag_set('foo')
+    assert not is_state('foo')
+    set_state('foo')
+    assert is_flag_set('foo')
+    assert is_state('foo')
+    remove_state('foo')
+    assert not is_flag_set('foo')
+    assert not is_state('foo')
