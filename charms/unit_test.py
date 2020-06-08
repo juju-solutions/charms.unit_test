@@ -35,8 +35,10 @@ def _debug_pront(msg, *args, color=None, **kwargs):
 
 _debug = _debug_noop  # overridden during testing by the --debug-tests option
 
+flags = set()
 
-def identity(x):
+
+def identity(x, *kwargs):
     return x
 
 
@@ -229,6 +231,12 @@ def patch_reactive():
     reactive.when_not_all.return_value = identity
     reactive.when_none.return_value = identity
     reactive.hook.return_value = identity
+    reactive.set_flag.side_effect = flags.add
+    reactive.clear_flag.side_effect = flags.discard
+    reactive.set_state.side_effect = flags.add
+    reactive.remove_state.side_effect = flags.discard
+    reactive.is_flag_set.side_effect = lambda f: f in flags
+    reactive.is_state.side_effect = lambda f: f in flags
 
     os.environ['JUJU_MODEL_UUID'] = 'test-1234'
     os.environ['JUJU_UNIT_NAME'] = 'test/0'
