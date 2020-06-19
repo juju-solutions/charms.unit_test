@@ -70,36 +70,23 @@ class AutoImportMockPackage(MagicMock):
         else:
             gp_attr, grandparent = None, None
         _debug('Attempting to auto-load {}', module_name, color='cyan')
-        try:
+        real_spec = MockFinder.find_real(module_name)
+        if grandparent:
+            setattr(grandparent, gp_attr, self)
+        if real_spec:
             module = importlib.import_module(module_name)
             setattr(self, attr, module)
             _debug('Loaded {}', module, color='green')
             return module
-        except ModuleNotFoundError:
-            _debug('Unable to load {}, returning mock', module_name,
+        else:
+            _debug('Nothing to load for {}, returning mock', module_name,
                    color='red')
             return super().__getattr__(attr)
-        finally:
-            if grandparent:
-                setattr(grandparent, gp_attr, self)
 
 
 class MockFinder:
-    def find_spec(self, fullname, path, target=None):
-        """
-        Find a ModuleSpec for the given module / package name.
-
-        This can be called for one of two cases:
-
-          * Nothing in this module tree has been loaded, in which case we'll be
-            called for the top-level package name. In this case, we need to
-            patch the entire module tree, but that is handled by MockLoader.
-
-          * An ancestor has been loaded but the finder for that ancestor either
-            is the MockFinder or it's one of the standard finders which can't
-            find the requested module.
-        """
-        _debug('Searching for {}', fullname, color='cyan')
+    @classmethod
+    def find_real(cls, fullname):
         # Defer to things actually on disk. To do so, though, we have to
         # temporarily remove any patched modules from sys.modules, or they will
         # prevent the normal discovery method from working. We also have to
@@ -121,6 +108,25 @@ class MockFinder:
                         return file_spec
                 except ModuleNotFoundError:
                     pass
+
+    def find_spec(self, fullname, path, target=None):
+        """
+        Find a ModuleSpec for the given module / package name.
+
+        This can be called for one of two cases:
+
+          * Nothing in this module tree has been loaded, in which case we'll be
+            called for the top-level package name. In this case, we need to
+            patch the entire module tree, but that is handled by MockLoader.
+
+          * An ancestor has been loaded but the finder for that ancestor either
+            is the MockFinder or it's one of the standard finders which can't
+            find the requested module.
+        """
+        _debug('Searching for {}', fullname, color='cyan')
+        file_spec = self.find_real(fullname)
+        if file_spec:
+            return file_spec
 
         # If nothing can be found on disk, then we're either being called as
         # a last option for something that really should fail, or because an
@@ -240,6 +246,8 @@ def patch_reactive():
 
     os.environ['JUJU_MODEL_UUID'] = 'test-1234'
     os.environ['JUJU_UNIT_NAME'] = 'test/0'
+    os.environ['JUJU_MACHINE_ID'] = '0'
+    os.environ['JUJU_AVAILABILITY_ZONE'] = ''
 
 
 sys.meta_path.append(MockFinder())
