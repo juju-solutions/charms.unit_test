@@ -1,6 +1,7 @@
 .tox/
 __pycache__/
 *.pyc
+*.egg-info/
 #Emacs temp files
 *~
 *#*
