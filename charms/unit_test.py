@@ -1,6 +1,7 @@
 import os
 import sys
 import importlib.util
+from contextlib import contextmanager
 from importlib.machinery import ModuleSpec
 from itertools import accumulate
 from unittest.mock import DEFAULT, MagicMock, patch
@@ -61,29 +62,37 @@ class AutoImportMockPackage(MagicMock):
         if attr.startswith('_'):
             return super().__getattr__(attr)
         module_name = self.__name__ + '.' + attr
-        if '.' in self.__name__:
-            # For some reason loading, or even finding the spec for, a real
-            # submodule will cause us to get detached from our grandparent,
-            # so we have to save and restore.
-            gp_name, gp_attr = self.__name__.rsplit('.', 1)
-            grandparent = sys.modules[gp_name]
+        _debug('Attempting to auto-load {}', module_name, color='cyan')
+        real_spec = MockFinder.find_real(module_name)
+        if real_spec:
+            module = importlib.import_module(module_name)
+            setattr(self, attr, module)
+            _debug('Loaded {}', module, color='green')
+            return module
         else:
-            gp_attr, grandparent = None, None
-        try:
-            _debug('Attempting to auto-load {}', module_name, color='cyan')
-            real_spec = MockFinder.find_real(module_name)
-            if real_spec:
-                module = importlib.import_module(module_name)
-                setattr(self, attr, module)
-                _debug('Loaded {}', module, color='green')
-                return module
-            else:
-                _debug('Nothing to load for {}, returning mock', module_name,
-                       color='red')
-                return super().__getattr__(attr)
-        finally:
-            if grandparent:
-                setattr(grandparent, gp_attr, self)
+            _debug('Nothing to load for {}, returning mock', module_name,
+                   color='red')
+            return super().__getattr__(attr)
+
+
+@contextmanager
+def _hide_patched_modules():
+    # NB: can't use unittest.mock.patch.dict because it doesn't restore
+    # attribute attachment.
+    patches = {}
+    for name, mod in sys.modules.items():
+        if isinstance(mod, MagicMock):
+            patches[name] = mod
+    for name in patches.keys():
+        del sys.modules[name]
+    try:
+        yield
+    finally:
+        for name, mod in patches.items():
+            sys.modules[name] = mod
+            if '.' in name:
+                parent, attr = name.rsplit('.', 1)
+                setattr(sys.modules[parent], attr, mod)
 
 
 class MockFinder:
@@ -97,9 +106,7 @@ class MockFinder:
         # patched module, but the user is trying to import a real module. A
         # common example of this is having charms.layer patched but wanting to
         # import the charm's own lib code, from, e.g., charms.layer.my_charm.
-        with patch.dict(sys.modules, clear=True,
-                        values={name: mod for name, mod in sys.modules.items()
-                                if not isinstance(mod, MagicMock)}):
+        with _hide_patched_modules():
             with patch('sys.meta_path',
                        [finder for finder in sys.meta_path
                         if not isinstance(finder, MockFinder)]):
@@ -225,7 +232,10 @@ def patch_reactive():
     Setup the standard patches that any reactive charm will require.
     """
     patch_module('charms.templating')
-    patch_module('charms.layer', AutoImportMockPackage(name='charms.layer'))
+
+    charms_layer = AutoImportMockPackage(name='charms.layer')
+    charms_layer.import_layer_libs = MagicMock(name='import_layer_libs')
+    patch_module('charms.layer', charms_layer)
 
     ch = patch_module('charmhelpers')
     ch.core.hookenv.atexit = identity

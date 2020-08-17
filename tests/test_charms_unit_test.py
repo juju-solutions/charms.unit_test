@@ -110,9 +110,11 @@ def test_auto_import_mock_package_top_level():
 
 def test_patch_reactive():
     unit_test.patch_reactive()
+    import charms
     import charms.templating  # noqa
     import charms.layer.foo  # noqa
     import charmhelpers
+    from charms.layer import import_layer_libs  # noqa
     from charms.reactive import when, when_all, when_not_all
     from charms.reactive import set_flag, clear_flag, is_flag_set
     from charms.reactive import set_state, remove_state, is_state
@@ -151,3 +153,5 @@ def test_patch_reactive():
     remove_state('foo')
     assert not is_flag_set('foo')
     assert not is_state('foo')
+
+    assert charms.layer.import_layer_libs
