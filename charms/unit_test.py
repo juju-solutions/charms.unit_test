@@ -69,19 +69,21 @@ class AutoImportMockPackage(MagicMock):
             grandparent = sys.modules[gp_name]
         else:
             gp_attr, grandparent = None, None
-        _debug('Attempting to auto-load {}', module_name, color='cyan')
-        real_spec = MockFinder.find_real(module_name)
-        if grandparent:
-            setattr(grandparent, gp_attr, self)
-        if real_spec:
-            module = importlib.import_module(module_name)
-            setattr(self, attr, module)
-            _debug('Loaded {}', module, color='green')
-            return module
-        else:
-            _debug('Nothing to load for {}, returning mock', module_name,
-                   color='red')
-            return super().__getattr__(attr)
+        try:
+            _debug('Attempting to auto-load {}', module_name, color='cyan')
+            real_spec = MockFinder.find_real(module_name)
+            if real_spec:
+                module = importlib.import_module(module_name)
+                setattr(self, attr, module)
+                _debug('Loaded {}', module, color='green')
+                return module
+            else:
+                _debug('Nothing to load for {}, returning mock', module_name,
+                       color='red')
+                return super().__getattr__(attr)
+        finally:
+            if grandparent:
+                setattr(grandparent, gp_attr, self)
 
 
 class MockFinder:
