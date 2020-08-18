@@ -88,7 +88,7 @@ def _hide_patched_modules():
     try:
         yield
     finally:
-        for name, mod in patches.items():
+        for name, mod in sorted(patches.items()):
             sys.modules[name] = mod
             if '.' in name:
                 parent, attr = name.rsplit('.', 1)
