@@ -22,6 +22,14 @@ def test_patch():
     assert isinstance(dummy.foo, MagicMock)
 
 
+def test_patch_cm():
+    with unit_test.patch_module('dummy.test.foo') as _foo:
+        from dummy.test import foo
+        assert foo is _foo
+    with pytest.raises(ImportError):
+        from dummy.test import foo
+
+
 def test_patch_with_patched_ancestor():
     unit_test.patch_module('dummy')
     unit_test.patch_module('dummy.test')
