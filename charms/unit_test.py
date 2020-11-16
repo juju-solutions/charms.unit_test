@@ -202,7 +202,7 @@ def patch_module(fullname, replacement=None):
     """
     patched = []
 
-    def _unpatch(*a):
+    def _unpatch(*_):
         for module_name in patched:
             del sys.modules[module_name]
 
@@ -210,8 +210,8 @@ def patch_module(fullname, replacement=None):
         if ancestor not in sys.modules:
             MockLoader.load_module(ancestor)
             patched.append(ancestor)
-    replacement = MockLoader.load_module(fullname, replacement)
     patched.append(fullname)
+    replacement = MockLoader.load_module(fullname, replacement)
     replacement.__enter__ = lambda s: replacement
     replacement.__exit__ = _unpatch
     return replacement
