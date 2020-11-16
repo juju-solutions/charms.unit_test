@@ -200,10 +200,21 @@ def patch_module(fullname, replacement=None):
     """
     Patch a module (and potentially all of its parent packages).
     """
+    patched = []
+
+    def _unpatch(*a):
+        for module_name in patched:
+            del sys.modules[module_name]
+
     for ancestor in module_ancestors(fullname):
         if ancestor not in sys.modules:
             MockLoader.load_module(ancestor)
-    return MockLoader.load_module(fullname, replacement)
+            patched.append(ancestor)
+    replacement = MockLoader.load_module(fullname, replacement)
+    patched.append(fullname)
+    replacement.__enter__ = lambda s: replacement
+    replacement.__exit__ = _unpatch
+    return replacement
 
 
 def patch_fixture(patch_target, new=DEFAULT,
