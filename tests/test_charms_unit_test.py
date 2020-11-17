@@ -126,6 +126,7 @@ def test_patch_reactive():
     from charms.reactive import when, when_all, when_not_all
     from charms.reactive import set_flag, clear_flag, is_flag_set
     from charms.reactive import set_state, remove_state, is_state
+    from charms.reactive import toggle_flag
 
     @charmhelpers.core.hookenv.atexit
     def test_atexit():
@@ -161,5 +162,9 @@ def test_patch_reactive():
     remove_state('foo')
     assert not is_flag_set('foo')
     assert not is_state('foo')
+    toggle_flag('foo', False)
+    assert not is_flag_set('foo')
+    toggle_flag('foo', True)
+    assert is_flag_set('foo')
 
     assert charms.layer.import_layer_libs

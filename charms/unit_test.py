@@ -264,6 +264,8 @@ def patch_reactive():
     reactive.clear_flag.side_effect = flags.discard
     reactive.set_state.side_effect = flags.add
     reactive.remove_state.side_effect = flags.discard
+    reactive.toggle_flag.side_effect = lambda f, s: (flags.add(f) if s
+                                                     else flags.discard(f))
     reactive.is_flag_set.side_effect = lambda f: f in flags
     reactive.is_state.side_effect = lambda f: f in flags
 
