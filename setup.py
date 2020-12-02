@@ -3,7 +3,7 @@ from setuptools import setup
 
 SETUP = {
     'name': "charms.unit_test",
-    'version': '1.0.0',
+    'version': '1.0.1',
     'author': "Cory Johns",
     'author_email': "johnsca@gmail.com",
     'url': "https://github.com/juju-solutions/charms.unit_test",
@@ -11,6 +11,7 @@ SETUP = {
         "charms",
     ],
     'install_requires': [
+        "pytest",
     ],
     'license': "Apache License 2.0",
     'long_description_content_type': 'text/markdown',
