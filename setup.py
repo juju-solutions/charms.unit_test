@@ -13,6 +13,7 @@ SETUP = {
     'install_requires': [
     ],
     'license': "Apache License 2.0",
+    'long_description_content_type': 'text/markdown',
     'long_description': open('README.md').read(),
     'description': 'Helpers for unit-testing reactive-style Juju Charms',
 }
