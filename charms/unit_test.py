@@ -268,6 +268,8 @@ def patch_reactive():
                                                      else flags.discard(f))
     reactive.is_flag_set.side_effect = lambda f: f in flags
     reactive.is_state.side_effect = lambda f: f in flags
+    reactive.get_flags.side_effect = lambda: sorted(flags)
+    reactive.get_unset_flags.side_effect = lambda *f: sorted(set(f) - flags)
 
     os.environ['JUJU_MODEL_UUID'] = 'test-1234'
     os.environ['JUJU_UNIT_NAME'] = 'test/0'

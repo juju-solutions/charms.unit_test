@@ -125,6 +125,7 @@ def test_patch_reactive():
     from charms.layer import import_layer_libs  # noqa
     from charms.reactive import when, when_all, when_not_all
     from charms.reactive import set_flag, clear_flag, is_flag_set
+    from charms.reactive import get_flags, get_unset_flags
     from charms.reactive import set_state, remove_state, is_state
     from charms.reactive import toggle_flag
 
@@ -166,5 +167,8 @@ def test_patch_reactive():
     assert not is_flag_set('foo')
     toggle_flag('foo', True)
     assert is_flag_set('foo')
+
+    assert get_flags() == ['foo']
+    assert get_unset_flags('foo', 'bar') == ['bar']
 
     assert charms.layer.import_layer_libs
