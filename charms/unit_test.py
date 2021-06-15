@@ -283,6 +283,30 @@ class MockEndpoint(MagicMock):
         return MagicMock(**kwargs)
 
 
+class MockKV(dict):
+    def set(self, key, value):
+        self[key] = value
+
+    def getrange(self, key_prefix, strip=False):
+        results = {}
+        strip_len = len(key_prefix) if strip else 0
+        for key, value in self.items():
+            if key.startswith(key_prefix):
+                results[key[strip_len:]] = value
+        return results
+
+    def unset(self, key):
+        self.pop(key, None)
+
+    def unsetrange(self, keys=None, prefix=""):
+        if keys is None:
+            for key in [key for key in self.keys() if key.startswith(prefix)]:
+                del self[key]
+        else:
+            for key in keys:
+                self.pop(prefix + key, None)
+
+
 def patch_reactive():
     """
     Setup the standard patches that any reactive charm will require.
@@ -296,6 +320,7 @@ def patch_reactive():
     ch = patch_module("charmhelpers")
     ch.core.hookenv.atexit = identity
     ch.core.hookenv.charm_dir.return_value = "charm_dir"
+    ch.core.unitdata.kv.return_value = MockKV()
 
     reactive = patch_module("charms.reactive")
     reactive.when.return_value = identity

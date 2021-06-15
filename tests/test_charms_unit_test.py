@@ -152,6 +152,40 @@ def test_mock_endpoint():
     assert endpoint.expand_name("{endpoint_name}.foo") == "test.foo"
 
 
+def test_mock_kv():
+    kv = unit_test.MockKV()
+    assert kv == {}
+    kv.set("foo", "bar")
+    # Adapted from charmhelpers test
+    kv.set("docker.net_mtu", 1)
+    kv.set("docker.net_nack", True)
+    kv.set("docker.net_type", "vxlan")
+    assert kv.getrange("docker") == {
+        "docker.net_mtu": 1,
+        "docker.net_type": "vxlan",
+        "docker.net_nack": True,
+    }
+    assert kv.getrange("docker.", True) == {
+        "net_mtu": 1,
+        "net_type": "vxlan",
+        "net_nack": True,
+    }
+    kv.unset("foo")
+    assert kv == {
+        "docker.net_mtu": 1,
+        "docker.net_type": "vxlan",
+        "docker.net_nack": True,
+    }
+    kv.unsetrange(["net_mtu"], "docker.")
+    assert kv == {
+        "docker.net_type": "vxlan",
+        "docker.net_nack": True,
+    }
+    kv.set("foo", "bar")
+    kv.unsetrange(prefix="docker.")
+    assert kv == {"foo": "bar"}
+
+
 def test_patch_reactive():
     unit_test.patch_reactive()
     import charms
