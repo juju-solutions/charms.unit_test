@@ -1,1 +1,1 @@
-real_or_fake = 'real'
+real_or_fake = "real"
