@@ -1,6 +1,7 @@
 # charms.unit\_test
 
-This library provides helpers for unit testing reactive style charms.
+This library provides helpers for unit testing reactive style charms,
+layers, and interfaces.
 
 
 ## Usage
@@ -24,3 +25,9 @@ With this, your test code can import the charm's reactive code which
 depends on charms.reactive and charmhelpers without error, and the
 libraries will be mocked out so that you can call your handlers
 directly to test them.
+
+
+## Reference
+
+More details on what is patched, as well as what other helpers are available,
+can be found in [the reference docs](docs/reference.md).

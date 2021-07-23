@@ -39,7 +39,7 @@ _debug = _debug_noop  # overridden during testing by the --debug-tests option
 flags = set()
 
 
-def identity(x, *kwargs):
+def identity(x, *args, **kwargs):
     return x
 
 
