@@ -320,6 +320,7 @@ def patch_reactive():
     ch = patch_module("charmhelpers")
     ch.core.hookenv.atexit = identity
     ch.core.hookenv.charm_dir.return_value = "charm_dir"
+    ch.core.host.restart_on_change.return_value = identity
     ch.core.unitdata.kv.return_value = MockKV()
 
     reactive = patch_module("charms.reactive")
