@@ -3,7 +3,7 @@ from setuptools import setup
 
 SETUP = {
     'name': "charms.unit_test",
-    'version': '1.1.0',
+    'version': '1.1.1',
     'author': "Cory Johns",
     'author_email': "johnsca@gmail.com",
     'url': "https://github.com/juju-solutions/charms.unit_test",
