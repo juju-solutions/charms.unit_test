@@ -198,6 +198,8 @@ class MockLoader:
         if not hasattr(replacement, "__path__"):
             replacement.__name__ = fullname
             replacement.__path__ = []
+        if not hasattr(replacement, "__spec__"):
+            replacement.__spec__ = ModuleSpec(fullname, cls)
         sys.modules[fullname] = replacement
         _debug("Patched {}", fullname, color="green")
         return replacement
